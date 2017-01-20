@@ -7,19 +7,108 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r load-data}
+act<-read.csv("activity.csv")
 
+```
 
 
 ## What is mean total number of steps taken per day?
+The total number of steps per day is
+```{r nsteps}
+stepsDay<-aggregate(act[,1],list(act$date),sum,na.rm=TRUE)
+stepsDay
+```
+Histogram
+```{r plot1}
+hist(stepsDay$x)
+```
 
+The mean and median per day
+```{r stats}
+library(plyr)
+stats<-ddply(act,~date,summarise,mean=mean(steps,na.rm=TRUE),median=median(steps,na.rm=TRUE))
+stats
+```
 
 
 ## What is the average daily activity pattern?
+```{r plot2}
+stepsInt<-aggregate(act[,1],list(act$interval),sum,na.rm=TRUE)
+plot(stepsInt$Group.1,stepsInt$x,type="l",xlab="Interval",ylab="Total Steps")
+
+```
+```{r, results='hide'}
+maxStInt<-stepsInt[stepsInt$x==max(stepsInt$x),1]
+```
+The  5-minute interval that contains the maximum number of steps is `r maxStInt`
 
 
 
 ## Imputing missing values
 
+```{r}
+missVal<-sum(is.na(act$steps))
+
+```
+The total number of missing values is `r missVal`.
+
+A new data set will contain the same data with NAs values changed by the media in the interval 
+
+```{r}
+stepsIntMean<-aggregate(act[,1],list(act$interval),mean,na.rm=TRUE)
+act2<-act
+for (i in 1:length(act$steps)){
+        if (is.na(act2[i,1])==TRUE){
+                act2[i,1]<-stepsIntMean[stepsIntMean$Group.1==act2[i,3],2]
+        }
+}
+```
+
+Histogram of the new data set
+```{r plot3}
+stepsDay2<-aggregate(act2[,1],list(act2$date),sum,na.rm=TRUE)
+hist(stepsDay2$x)
+```
+
+The mean and median per day
+```{r stats2}
+stats2<-ddply(act2,~date,summarise,mean=mean(steps,na.rm=TRUE),median=median(steps,na.rm=TRUE))
+stats2
+```
+
+The correlation plot between the mean of the two data sets (with and without NAs) shows that the results are similar
+```{r plot4}
+plot(stats$mean,stats2$mean)
+```
+
+The values for the median are similar for the days in which there are not NAs (median=0) and differs in the days in which all steps were NA (median=34.11321)
+
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+ First create the data set with a new column
+ 
+```{r data3}
+act3<-act2
+act3$Day<-weekdays(as.Date(act2$date))
+act3[act3$Day=="domingo"|act3$Day=="sábado",]$Day<-"weekend"
+act3[act3$Day=="lunes"|act3$Day=="martes"|act3$Day=="miércoles"|act3$Day=="jueves"|act3$Day=="viernes",]$Day<-"weekday"
+act3$Day<-as.factor(act3$Day)
+```
+
+Create data sets for weekdays and weekends an plot the average of steps by interval
+
+```{r plot5}
+Weekend<-act3[act3$Day=="weekend",]
+Weekday<-act3[act3$Day=="weekday",]
+stepsIntWD<-aggregate(Weekday[,1],list(Weekday$interval),mean)
+stepsIntW<-aggregate(Weekend[,1],list(Weekend$interval),mean)
+par(mfrow=(c(2,1)))
+plot(stepsIntW$Group.1,stepsIntW$x,type="l",main="Weekend",ylab="Steps",xlab="Interval")
+plot(stepsIntWD$Group.1,stepsIntWD$x,type="l",main="Weekday",ylab="Steps",xlab="Interval")
+```
+
+There are significant differences in the activity depending on wether the day is weekday or weekend. 
+
